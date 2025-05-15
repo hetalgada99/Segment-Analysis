@@ -119,7 +119,8 @@ from dash import Dash, dcc, html, Input, Output
 import dash_bootstrap_components as dbc
 
 # Load and prepare data
-df = pd.read_excel(r"C:\Users\hgada\OneDrive - Hearst\Documents\Log Summary Python\wdsu\WDSU.xlsx")
+df = pd.read_excel("WDSU.xlsx")
+
 df.columns = df.columns.str.strip()
 df = df.dropna(subset=['Aired Time', 'Sched Time', 'Program'])
 df['Aired Time'] = df['Aired Time'].astype(str).str.replace('XM', 'AM', case=False, regex=False)
@@ -219,3 +220,6 @@ def display_programs(clickData, selected_range):
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
+
+
+#http://127.0.0.1:8050/
