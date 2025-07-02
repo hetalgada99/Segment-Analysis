@@ -1,8 +1,4 @@
 
-
-
-#works perfectly fine and now below adding the ALL filters to all:
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -15,10 +11,10 @@ st.title("📺 Time Difference Explorer")
 dataset_option = st.selectbox("Choose Dataset", ["WBAL", "WCVB", "WLKY", "WNNE"])
 
 dataset_paths = {
-    "WBAL": r"C:\Users\hgada\OneDrive - Hearst\Documents\Log Summary Python\June\WBAL.xlsx",
-    "WCVB": r"C:\Users\hgada\OneDrive - Hearst\Documents\Log Summary Python\June\WCVB.xlsx",
-    "WLKY": r"C:\Users\hgada\OneDrive - Hearst\Documents\Log Summary Python\June\WLKY.xlsx",
-    "WNNE": r"C:\Users\hgada\OneDrive - Hearst\Documents\Log Summary Python\June\WNNE.xlsx",
+    "WBAL": "WBAL.xlsx",
+    "WCVB": "WCVB.xlsx",
+    "WLKY": "WLKY.xlsx",
+    "WNNE": "WNNE.xlsx",
 }
 
 file_path = dataset_paths.get(dataset_option)
