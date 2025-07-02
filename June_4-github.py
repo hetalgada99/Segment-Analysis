@@ -394,18 +394,24 @@
 
 
 ##github for new layout!:
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-# --- Page Setup ---
-st.set_page_config(page_title="🕒 Time Difference Explorer", layout="wide", page_icon="📊")
-st.title("📺 Time Difference Explorer")
-st.markdown("Analyze Aired vs Scheduled program timing across stations using interactive filters.")
+# --- Page Config ---
+st.set_page_config(page_title="🕒 Time Explorer Dashboard", layout="wide", page_icon="📊")
+
+# --- Header ---
+st.markdown("""
+    <h1 style='text-align: center; color: #4A90E2;'>📺 Time Difference Explorer</h1>
+    <p style='text-align: center;'>Analyze Aired vs Scheduled program timing with interactive filters and visuals</p>
+""", unsafe_allow_html=True)
 
 # --- Dataset Selection ---
-dataset_option = st.sidebar.selectbox("📁 Choose Dataset", ["WBAL", "WCVB", "WLKY", "WNNE"])
+st.sidebar.header("📁 Dataset Selection")
+dataset_option = st.sidebar.selectbox("Choose Dataset", ["WBAL", "WCVB", "WLKY", "WNNE"], index=0)
 dataset_paths = {
     "WBAL": "WBAL.xlsx",
     "WCVB": "WCVB.xlsx",
@@ -413,9 +419,6 @@ dataset_paths = {
     "WNNE": "WNNE.xlsx",
 }
 file_path = dataset_paths.get(dataset_option)
-if not file_path:
-    st.error("Unknown dataset selected.")
-    st.stop()
 
 # --- Load and Clean Data ---
 df = pd.read_excel(file_path)
@@ -427,7 +430,9 @@ df['AiredTimeOnly'] = pd.to_datetime(df['Aired Time'], errors='coerce').dt.time
 df['SchedTimeOnly'] = pd.to_datetime(df['Sched Time'], errors='coerce').dt.time
 df = df.dropna(subset=['AiredTimeOnly', 'SchedTimeOnly'])
 
-def time_to_seconds(t): return t.hour * 3600 + t.minute * 60 + t.second
+def time_to_seconds(t):
+    return t.hour * 3600 + t.minute * 60 + t.second
+
 df['AiredSeconds'] = df['AiredTimeOnly'].apply(time_to_seconds)
 df['SchedSeconds'] = df['SchedTimeOnly'].apply(time_to_seconds)
 df['TimeInSeconds'] = abs(df['AiredSeconds'] - df['SchedSeconds']).apply(lambda x: min(x, 86400 - x))
@@ -438,77 +443,40 @@ if 'Air Date' in df.columns:
     df = df.dropna(subset=['AirDateOnly'])
     df['DayName'] = pd.to_datetime(df['AirDateOnly']).dt.day_name()
 else:
-    df['AirDateOnly'], df['DayName'] = None, None
+    df['AirDateOnly'] = None
+    df['DayName'] = None
 
-# --- Sidebar Filters ---
-st.sidebar.markdown("## 🔧 Filters")
+# --- Sidebar Filters in Expanders (Collapsed by Default) ---
+with st.sidebar.expander("📅 Filter by Date & Day", expanded=False):
+    if df['AirDateOnly'].notnull().any():
+        all_dates = sorted(df['AirDateOnly'].unique())
+        all_days = sorted(df['DayName'].dropna().unique())
+        selected_days = st.multiselect("Select Days:", all_days, default=all_days)
+        filtered_dates = sorted(df[df['DayName'].isin(selected_days)]['AirDateOnly'].unique())
+        selected_dates = st.multiselect("Select Air Dates:", filtered_dates, default=filtered_dates)
+        df = df[df['DayName'].isin(selected_days) & df['AirDateOnly'].isin(selected_dates)]
 
-# 📅 Date & Day Filters
-st.sidebar.markdown("### 📅 Date & Day")
-if df['AirDateOnly'].notnull().any():
-    all_dates = sorted(df['AirDateOnly'].unique())
-    all_days = sorted(df['DayName'].dropna().unique())
+with st.sidebar.expander("🎛️ Filter by Program", expanded=False):
+    all_programs = sorted(df['Program'].unique())
+    selected_programs = st.multiselect("Select Programs:", all_programs, default=all_programs)
+    df = df[df['Program'].isin(selected_programs)]
 
-    if 'selected_days' not in st.session_state:
-        st.session_state.selected_days = all_days.copy()
-    if 'selected_dates' not in st.session_state:
-        st.session_state.selected_dates = all_dates.copy()
-
-    def on_days_change():
-        filtered_dates = sorted(df[df['DayName'].isin(st.session_state.selected_days)]['AirDateOnly'].unique())
-        st.session_state.selected_dates = [d for d in st.session_state.selected_dates if d in filtered_dates]
-        if not st.session_state.selected_dates:
-            st.session_state.selected_dates = filtered_dates
-
-    def on_dates_change():
-        filtered_days = sorted(df[df['AirDateOnly'].isin(st.session_state.selected_dates)]['DayName'].unique())
-        st.session_state.selected_days = [d for d in st.session_state.selected_days if d in filtered_days]
-        if not st.session_state.selected_days:
-            st.session_state.selected_days = filtered_days
-
-    selected_days = st.sidebar.multiselect("Days", all_days, default=st.session_state.selected_days, key='selected_days', on_change=on_days_change)
-    available_dates = sorted(df[df['DayName'].isin(st.session_state.selected_days)]['AirDateOnly'].unique())
-    st.session_state.selected_dates = [d for d in st.session_state.selected_dates if d in available_dates]
-    if not st.session_state.selected_dates:
-        st.session_state.selected_dates = available_dates
-    selected_dates = st.sidebar.multiselect("Dates", available_dates, default=st.session_state.selected_dates, key='selected_dates', on_change=on_dates_change)
-else:
-    selected_days = selected_dates = None
-
-# --- Filter by selected day/date ---
-df_filtered_days_dates = df.copy()
-if selected_dates is not None:
-    df_filtered_days_dates = df_filtered_days_dates[df_filtered_days_dates['AirDateOnly'].isin(selected_dates)]
-if selected_days is not None:
-    df_filtered_days_dates = df_filtered_days_dates[df_filtered_days_dates['DayName'].isin(selected_days)]
-
-# 🎛️ Program Filter
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🎛️ Program")
-all_programs = sorted(df_filtered_days_dates['Program'].unique())
-select_all_programs = st.sidebar.checkbox("Select All Programs", value=True, key="select_all_programs")
-selected_programs = st.sidebar.multiselect("Programs", all_programs, default=all_programs if select_all_programs else [], key="program_multiselect")
-df_filtered_prog = df_filtered_days_dates[df_filtered_days_dates['Program'].isin(selected_programs)]
-
-# ⏱️ Time Difference Filter
-st.sidebar.markdown("---")
-st.sidebar.markdown("### ⏱️ Time Difference")
-min_possible = 0
-max_possible = int(df_filtered_prog['TimeInSeconds'].max() // 60) + 1 if not df_filtered_prog.empty else 1
-min_val, max_val = st.sidebar.slider("Range (min)", min_possible, max_possible, (min_possible, max_possible), step=1)
-min_sec, max_sec = min_val * 60, max_val * 60
-filtered_df = df_filtered_prog[(df_filtered_prog['TimeInSeconds'] >= min_sec) & (df_filtered_prog['TimeInSeconds'] <= max_sec)]
+with st.sidebar.expander("⏱️ Filter by Time Difference", expanded=False):
+    max_possible = int(df['TimeInSeconds'].max() // 60) + 1 if not df.empty else 1
+    min_val, max_val = st.slider("Time Difference Range (minutes)", 0, max_possible, (0, max_possible), step=1)
+    min_sec, max_sec = min_val * 60, max_val * 60
+    df = df[(df['TimeInSeconds'] >= min_sec) & (df['TimeInSeconds'] <= max_sec)]
 
 # --- Sorting Options ---
 col1, col2 = st.columns(2)
 with col1:
-    sort_column = st.radio("Sort by", ["Time Difference", "Count"], index=1)
+    sort_column = st.radio("Sort by:", ["Time Difference", "Count"], index=1)
 with col2:
-    sort_order = st.radio("Sort Order", ["Descending", "Ascending"])
+    sort_order = st.radio("Sort Order:", ["Descending", "Ascending"])
 ascending = sort_order == "Ascending"
 
 # --- Aggregate and Plot ---
-agg_df = filtered_df.groupby('TimeDifferenceFormatted').size().reset_index(name='Count')
+agg_df = df.groupby('TimeDifferenceFormatted').size().reset_index(name='Count')
 if sort_column == "Count":
     agg_df = agg_df.sort_values(by='Count', ascending=ascending)
 else:
@@ -519,21 +487,23 @@ fig = px.bar(
     agg_df,
     x='TimeDifferenceFormatted',
     y='Count',
-    title=f"⏱️ {dataset_option}: Time Differences ({min_val}-{max_val} minutes)",
-    labels={'TimeDifferenceFormatted': 'Time Difference (MM:SS)', 'Count': 'Count'},
+    title=f"⏱️ Time Differences for {dataset_option} ({min_val}-{max_val} min)",
+    labels={'TimeDifferenceFormatted': 'Time Difference (MM:SS)', 'Count': 'Occurrences'},
     template='plotly_dark'
 )
+fig.update_layout(title_font_size=20)
 fig.update_xaxes(tickangle=-45)
 st.plotly_chart(fig, use_container_width=True)
 
-# --- Program Display ---
+# --- Show Matching Programs ---
 if not agg_df.empty:
-    selected_time = st.selectbox("🎯 View programs with Time Difference:", agg_df['TimeDifferenceFormatted'])
-    matched_programs = filtered_df[filtered_df['TimeDifferenceFormatted'] == selected_time]['Program'].unique()
-    st.subheader(f"📋 Programs with Time Difference {selected_time}")
+    selected_time = st.selectbox("🎯 Select Time Difference to view matching programs:", agg_df['TimeDifferenceFormatted'])
+    matched_programs = df[df['TimeDifferenceFormatted'] == selected_time]['Program'].unique()
+    st.markdown(f"### 📋 Programs with Time Difference `{selected_time}`")
     if len(matched_programs) == 0:
         st.info("No matching programs found.")
     else:
+        st.success(f"Found {len(matched_programs)} program(s)")
         st.dataframe(pd.DataFrame(matched_programs, columns=["Program"]))
 else:
     st.warning("⚠️ No data matches the selected filters.")
