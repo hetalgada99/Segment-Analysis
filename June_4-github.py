@@ -394,7 +394,6 @@
 
 
 ##github for new layout!:
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -402,11 +401,11 @@ from datetime import datetime
 
 # --- Page Setup ---
 st.set_page_config(page_title="🕒 Time Difference Explorer", layout="wide", page_icon="📊")
-st.markdown("## 📺 Time Difference Explorer")
+st.title("📺 Time Difference Explorer")
 st.markdown("Analyze Aired vs Scheduled program timing across stations using interactive filters.")
 
 # --- Dataset Selection ---
-dataset_option = st.selectbox("📁 Choose Dataset", ["WBAL", "WCVB", "WLKY", "WNNE"])
+dataset_option = st.sidebar.selectbox("📁 Choose Dataset", ["WBAL", "WCVB", "WLKY", "WNNE"])
 dataset_paths = {
     "WBAL": "WBAL.xlsx",
     "WCVB": "WCVB.xlsx",
@@ -441,44 +440,39 @@ if 'Air Date' in df.columns:
 else:
     df['AirDateOnly'], df['DayName'] = None, None
 
-# --- Day & Date Filter ---
-with st.expander("📅 Filter by Date & Day", expanded=False):
-    if df['AirDateOnly'].notnull().any():
-        all_dates = sorted(df['AirDateOnly'].unique())
-        all_days = sorted(df['DayName'].dropna().unique())
+# --- Sidebar Filters ---
+st.sidebar.markdown("### 📅 Filter by Date & Day")
+if df['AirDateOnly'].notnull().any():
+    all_dates = sorted(df['AirDateOnly'].unique())
+    all_days = sorted(df['DayName'].dropna().unique())
 
-        if 'selected_days' not in st.session_state:
-            st.session_state.selected_days = all_days.copy()
-        if 'selected_dates' not in st.session_state:
-            st.session_state.selected_dates = all_dates.copy()
+    if 'selected_days' not in st.session_state:
+        st.session_state.selected_days = all_days.copy()
+    if 'selected_dates' not in st.session_state:
+        st.session_state.selected_dates = all_dates.copy()
 
-        def on_days_change():
-            filtered_dates = sorted(df[df['DayName'].isin(st.session_state.selected_days)]['AirDateOnly'].unique())
-            st.session_state.selected_dates = [d for d in st.session_state.selected_dates if d in filtered_dates]
-            if not st.session_state.selected_dates:
-                st.session_state.selected_dates = filtered_dates
-
-        def on_dates_change():
-            filtered_days = sorted(df[df['AirDateOnly'].isin(st.session_state.selected_dates)]['DayName'].unique())
-            st.session_state.selected_days = [d for d in st.session_state.selected_days if d in filtered_days]
-            if not st.session_state.selected_days:
-                st.session_state.selected_days = filtered_days
-
-        selected_days = st.multiselect("Select Days:", options=all_days, default=st.session_state.selected_days,
-                                       key='selected_days', on_change=on_days_change)
-
-        available_dates = sorted(df[df['DayName'].isin(st.session_state.selected_days)]['AirDateOnly'].unique())
-        st.session_state.selected_dates = [d for d in st.session_state.selected_dates if d in available_dates]
+    def on_days_change():
+        filtered_dates = sorted(df[df['DayName'].isin(st.session_state.selected_days)]['AirDateOnly'].unique())
+        st.session_state.selected_dates = [d for d in st.session_state.selected_dates if d in filtered_dates]
         if not st.session_state.selected_dates:
-            st.session_state.selected_dates = available_dates
+            st.session_state.selected_dates = filtered_dates
 
-        selected_dates = st.multiselect("Select Air Dates:", options=available_dates,
-                                        default=st.session_state.selected_dates, key='selected_dates',
-                                        on_change=on_dates_change)
-    else:
-        selected_days = selected_dates = None
+    def on_dates_change():
+        filtered_days = sorted(df[df['AirDateOnly'].isin(st.session_state.selected_dates)]['DayName'].unique())
+        st.session_state.selected_days = [d for d in st.session_state.selected_days if d in filtered_days]
+        if not st.session_state.selected_days:
+            st.session_state.selected_days = filtered_days
 
-# --- Filter by Days/Dates ---
+    selected_days = st.sidebar.multiselect("Select Days", all_days, default=st.session_state.selected_days, key='selected_days', on_change=on_days_change)
+    available_dates = sorted(df[df['DayName'].isin(st.session_state.selected_days)]['AirDateOnly'].unique())
+    st.session_state.selected_dates = [d for d in st.session_state.selected_dates if d in available_dates]
+    if not st.session_state.selected_dates:
+        st.session_state.selected_dates = available_dates
+    selected_dates = st.sidebar.multiselect("Select Dates", available_dates, default=st.session_state.selected_dates, key='selected_dates', on_change=on_dates_change)
+else:
+    selected_days = selected_dates = None
+
+# --- Filter by selected day/date ---
 df_filtered_days_dates = df.copy()
 if selected_dates is not None:
     df_filtered_days_dates = df_filtered_days_dates[df_filtered_days_dates['AirDateOnly'].isin(selected_dates)]
@@ -486,36 +480,31 @@ if selected_days is not None:
     df_filtered_days_dates = df_filtered_days_dates[df_filtered_days_dates['DayName'].isin(selected_days)]
 
 # --- Program Filter ---
-with st.expander("🎛️ Filter by Program", expanded=False):
-    all_programs = sorted(df_filtered_days_dates['Program'].unique())
-    select_all_programs = st.checkbox("Select All Programs", value=True, key="select_all_programs")
-    selected_programs = st.multiselect("Choose Programs:",
-                                       options=all_programs,
-                                       default=all_programs if select_all_programs else [],
-                                       key="program_multiselect")
+st.sidebar.markdown("### 🎛️ Filter by Program")
+all_programs = sorted(df_filtered_days_dates['Program'].unique())
+select_all_programs = st.sidebar.checkbox("Select All", value=True, key="select_all_programs")
+selected_programs = st.sidebar.multiselect("Choose Programs", all_programs, default=all_programs if select_all_programs else [], key="program_multiselect")
+
 df_filtered_prog = df_filtered_days_dates[df_filtered_days_dates['Program'].isin(selected_programs)]
 
-# --- Time Range Filter ---
-with st.expander("⏱️ Filter by Time Difference", expanded=False):
-    min_possible = 0
-    max_possible = int(df_filtered_prog['TimeInSeconds'].max() // 60) + 1 if not df_filtered_prog.empty else 1
-    min_val, max_val = st.slider("Time Difference Range (minutes)", min_possible, max_possible,
-                                 (min_possible, max_possible), step=1, key="time_diff_slider")
+# --- Time Difference Filter ---
+st.sidebar.markdown("### ⏱️ Filter by Time Difference")
+min_possible = 0
+max_possible = int(df_filtered_prog['TimeInSeconds'].max() // 60) + 1 if not df_filtered_prog.empty else 1
+min_val, max_val = st.sidebar.slider("Time Range (minutes)", min_possible, max_possible, (min_possible, max_possible), step=1)
 min_sec, max_sec = min_val * 60, max_val * 60
 
-# --- Apply Final Filters ---
-filtered_df = df_filtered_prog[(df_filtered_prog['TimeInSeconds'] >= min_sec) &
-                               (df_filtered_prog['TimeInSeconds'] <= max_sec)]
+filtered_df = df_filtered_prog[(df_filtered_prog['TimeInSeconds'] >= min_sec) & (df_filtered_prog['TimeInSeconds'] <= max_sec)]
 
-# --- Sorting ---
+# --- Sorting Options ---
 col1, col2 = st.columns(2)
 with col1:
-    sort_column = st.radio("Sort by:", ["Time Difference", "Count"], index=1)
+    sort_column = st.radio("Sort by", ["Time Difference", "Count"], index=1)
 with col2:
-    sort_order = st.radio("Sort Order:", ["Descending", "Ascending"])
+    sort_order = st.radio("Sort Order", ["Descending", "Ascending"])
 ascending = sort_order == "Ascending"
 
-# --- Aggregation and Chart ---
+# --- Aggregate and Plot ---
 agg_df = filtered_df.groupby('TimeDifferenceFormatted').size().reset_index(name='Count')
 if sort_column == "Count":
     agg_df = agg_df.sort_values(by='Count', ascending=ascending)
@@ -534,9 +523,9 @@ fig = px.bar(
 fig.update_xaxes(tickangle=-45)
 st.plotly_chart(fig, use_container_width=True)
 
-# --- Display Matching Programs ---
+# --- Program Display ---
 if not agg_df.empty:
-    selected_time = st.selectbox("🎯 Select Time Difference to view matching programs:", agg_df['TimeDifferenceFormatted'])
+    selected_time = st.selectbox("🎯 View programs with Time Difference:", agg_df['TimeDifferenceFormatted'])
     matched_programs = filtered_df[filtered_df['TimeDifferenceFormatted'] == selected_time]['Program'].unique()
     st.subheader(f"📋 Programs with Time Difference {selected_time}")
     if len(matched_programs) == 0:
