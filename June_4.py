@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-st.set_page_config(page_title="Time Difference Explorer", layout="wide")
+st.set_page_config(page_title="Time Difference Explorer (June)", layout="wide")
 st.title("📺 Time Difference Explorer")
 
 # --- Dataset Selection ---
