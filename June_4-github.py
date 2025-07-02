@@ -441,7 +441,10 @@ else:
     df['AirDateOnly'], df['DayName'] = None, None
 
 # --- Sidebar Filters ---
-st.sidebar.markdown("### 📅 Filter by Date & Day")
+st.sidebar.markdown("## 🔧 Filters")
+
+# 📅 Date & Day Filters
+st.sidebar.markdown("### 📅 Date & Day")
 if df['AirDateOnly'].notnull().any():
     all_dates = sorted(df['AirDateOnly'].unique())
     all_days = sorted(df['DayName'].dropna().unique())
@@ -463,12 +466,12 @@ if df['AirDateOnly'].notnull().any():
         if not st.session_state.selected_days:
             st.session_state.selected_days = filtered_days
 
-    selected_days = st.sidebar.multiselect("Select Days", all_days, default=st.session_state.selected_days, key='selected_days', on_change=on_days_change)
+    selected_days = st.sidebar.multiselect("Days", all_days, default=st.session_state.selected_days, key='selected_days', on_change=on_days_change)
     available_dates = sorted(df[df['DayName'].isin(st.session_state.selected_days)]['AirDateOnly'].unique())
     st.session_state.selected_dates = [d for d in st.session_state.selected_dates if d in available_dates]
     if not st.session_state.selected_dates:
         st.session_state.selected_dates = available_dates
-    selected_dates = st.sidebar.multiselect("Select Dates", available_dates, default=st.session_state.selected_dates, key='selected_dates', on_change=on_dates_change)
+    selected_dates = st.sidebar.multiselect("Dates", available_dates, default=st.session_state.selected_dates, key='selected_dates', on_change=on_dates_change)
 else:
     selected_days = selected_dates = None
 
@@ -479,21 +482,21 @@ if selected_dates is not None:
 if selected_days is not None:
     df_filtered_days_dates = df_filtered_days_dates[df_filtered_days_dates['DayName'].isin(selected_days)]
 
-# --- Program Filter ---
-st.sidebar.markdown("### 🎛️ Filter by Program")
+# 🎛️ Program Filter
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🎛️ Program")
 all_programs = sorted(df_filtered_days_dates['Program'].unique())
-select_all_programs = st.sidebar.checkbox("Select All", value=True, key="select_all_programs")
-selected_programs = st.sidebar.multiselect("Choose Programs", all_programs, default=all_programs if select_all_programs else [], key="program_multiselect")
-
+select_all_programs = st.sidebar.checkbox("Select All Programs", value=True, key="select_all_programs")
+selected_programs = st.sidebar.multiselect("Programs", all_programs, default=all_programs if select_all_programs else [], key="program_multiselect")
 df_filtered_prog = df_filtered_days_dates[df_filtered_days_dates['Program'].isin(selected_programs)]
 
-# --- Time Difference Filter ---
-st.sidebar.markdown("### ⏱️ Filter by Time Difference")
+# ⏱️ Time Difference Filter
+st.sidebar.markdown("---")
+st.sidebar.markdown("### ⏱️ Time Difference")
 min_possible = 0
 max_possible = int(df_filtered_prog['TimeInSeconds'].max() // 60) + 1 if not df_filtered_prog.empty else 1
-min_val, max_val = st.sidebar.slider("Time Range (minutes)", min_possible, max_possible, (min_possible, max_possible), step=1)
+min_val, max_val = st.sidebar.slider("Range (min)", min_possible, max_possible, (min_possible, max_possible), step=1)
 min_sec, max_sec = min_val * 60, max_val * 60
-
 filtered_df = df_filtered_prog[(df_filtered_prog['TimeInSeconds'] >= min_sec) & (df_filtered_prog['TimeInSeconds'] <= max_sec)]
 
 # --- Sorting Options ---
